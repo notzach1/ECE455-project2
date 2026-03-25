@@ -209,6 +209,7 @@ void handle_release(message_dds *input_message){
     input_message->task.release_time = xTaskGetTickCount();
     //insert a new element 
     insert_node(&active_task_list, input_message->task);
+    protected_printf("Release=%u deadline=%u at t=%u\n",input_message->task.task_id,input_message->task.absolute_deadline,input_message->task.release_time); 
     //update priority head of list high rest low
     adjust_priorities();
     uint32_t complete = 1;
@@ -217,9 +218,57 @@ void handle_release(message_dds *input_message){
 }
 
 void handle_complete(dds_message *input_message){
+    //task is done lets remove it
+    dd_task_list *node = remove_node(&active_task_list, input_message->task.task_id);
+    if(node!=NULL){
+        //time it was done 
+        node->task.completion_time = xTaskGetTickCount();
+        //did it miss or not miss
+        if(node->task.completion_time <= node->task.absolute_deadline) {
+            //did not miss
+            protected_printf("completed =%u on time at t=%u\n",node->task.task_id,node->task.completion_time);
+            //add node to complete list
+            node->next = completed_task_list;
+            completed_task_list =node;
+        }else{
+            //it missed
+            protected_printf("completed =%u MISSED at t=%u deadline=%u\n",node->task.task_id,node->task.completion_time,node->task.absolute_deadline);
+            node->next = missed_task_list;
+            missed_task_list =node;
+        }
 
+    }
+    adjust_priorities();
+    uint8_t done =1;
+    xQueueSend(temp_reply_queue, &done, portMAX_DELAY);
+}
+///////////////////////////////////////////////////////////
+void handle_deadline_miss(void){
+    //safety are there any task in list
+    if(active_task_list = NULL){
+        return;
 
+    }
+    //take the task that was missed off the head of list 
+    dd_task_list *missed_task = active_list;
+    active_task_list= active_task_list->next;
+    missed_task->next= NULL;
+    protected_printf("missed=%u deadline=%u\n",missed->task.task_id,missed->task.absolute_deadline);
+    //set the task to lowest priority
+    vTaskPrioritySet(missed_task->task.t_handle,1)//set priority
+    vTaskSuspend(missed_task->task.t_handle);//dont let dds see the task
 
+    //put in missed list
+    missed_task->next = missed_task_list;
+    missed_task_list; = missed_task
+
+    //have the generator release it again
+    xQueueSend(missed_queue, &missed_task->task.t_handle, 0);
+    //adjust the order of list 
+    adjust_priorities();
+
+}
+///////////////////////////////////////////////////////////
 
 ///////////////////////////////////////////////////////////
 
