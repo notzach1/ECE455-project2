@@ -42,13 +42,13 @@ struct dd_task_node *next;
 
 //message format 
 typedef struct{
-    uint32_t m_type //what type of message is sent above
+    uint32_t m_type; //what type of message is sent above
 
     //separate task_id for TASK DONE bc when done we only need to tell dds what the id is 
-    dd_task task //this is used for TASK_RELEASE contains all information
+    dd_task task; //this is used for TASK_RELEASE contains all information
 
     //create a reply que
-    QueueHandle_t temp_reply_que //task makes que, sends to dds in this message, waits for reply, dds sneds reply to that que, task will recieve adn then delete
+    QueueHandle_t temp_reply_que; //task makes que, sends to dds in this message, waits for reply, dds sneds reply to that que, task will recieve adn then delete
                               //note: The que is small hopefully avoid fragmetation
 }message_dds;
 
@@ -166,7 +166,7 @@ dd_task_list *remove_node(dd_task_list **head, uint32_t task_id_to_remove){
 }
 uint32_t list_size(dd_task_list *head){
     dd_task_list *list_postion = head;
-    uint32_t c; //count
+    uint32_t c=0; //count
     //parse the list 
     while(list_postion !=NULL){
         c++;//increment count
@@ -181,6 +181,7 @@ void adjust_priorities(void){
     //check if its empty
     if(active_task_list==NULL){
         que_timeout= portMAX_DELAY;
+        return;
     }
     //give head of list high priorirty
     vTaskPrioritySet(active_task_list->task.t_handle, 3);
@@ -189,7 +190,7 @@ void adjust_priorities(void){
     while(list_position !=NULL){
         //set lowest priority 
         vTaskPrioritySet(list_position->task.t_handle, 1);
-        list_postion = list_postion->next;
+        list_postion = list_position->next;
     }
 
 }
@@ -224,7 +225,7 @@ int protected_printf(const char *input_string,...){
   
   //going to act like printf and return number of characters printed
   //TESTING: will pass negative if something goes wrong
-  int characters_printed = vprintf(input_string, variable_type_list);//vprintf used for va list
+  characters_printed = vprintf(input_string, variable_type_list);//vprintf used for va list
   
   xSemaphoreGive(print_lock);//release the lock on the resource
   va_end(variable_type_list);//done using this list 
