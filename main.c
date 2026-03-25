@@ -192,11 +192,31 @@ void adjust_priorities(void){
         vTaskPrioritySet(list_position->task.t_handle, 1);
         list_postion = list_position->next;
     }
+    //dds needs to wait for the message before I say it was missed
+    TickType_t current_time= xTaskGetTickCount();//cur time
+    TickType_t deadline =active_list->task.absolute_deadline;//calc the deadline
+    if(deadline>current_time){//did we already miss it 
+        que_timeout = deadline - current_time;
+    }else{
+        que_timeout = 0;//already missed it need to add to missed list 
+    }
+    
+}
+///////////////////////////////////////////////////////////
 
+void handle_release(message_dds *input_message){
+    //current time store the release time.
+    input_message->task.release_time = xTaskGetTickCount();
+    //insert a new element 
+    insert_node(&active_task_list, input_message->task);
+    //update priority head of list high rest low
+    adjust_priorities();
+    uint32_t complete = 1;
+    //when the release was triggered temp que and sent the message to dds, waiting for a reply send back that we are done
+    xQueueSend(input_message->temp_reply_que,&complete, 0);
 }
 
-
-
+void handle_complete(dds_message *input_message){
 
 
 
